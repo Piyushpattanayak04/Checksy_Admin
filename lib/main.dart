@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_options.dart';
 import 'themes/dark_theme.dart';
 import 'screens/login_screen.dart';
@@ -8,11 +9,17 @@ import 'screens/event_screen.dart';  // Import the renamed EventScreen
 import 'screens/dashboard_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 
+final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Enable analytics collection
+  await analytics.setAnalyticsCollectionEnabled(true);
+  
   runApp(const MyApp());
 }
 

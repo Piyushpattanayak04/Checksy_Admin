@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import 'event_registration_screen.dart';
 import 'event_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +16,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<String> _events = [];
+  
+  bool get isSuperAdmin => AuthService.isSuperAdmin;
 
   @override
   void initState() {
@@ -54,6 +58,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildHomeTab() {
+    // Regular admins can only access the scanner
+    if (!isSuperAdmin) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 64, color: Colors.grey[600]),
+            const SizedBox(height: 16),
+            Text(
+              'Event management is restricted to Super Admins',
+              style: TextStyle(color: Colors.grey[400], fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => setState(() => _selectedIndex = 1),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Go to Scanner'),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return _events.isEmpty
         ? const Center(child: Text('No events found.'))
         : ListView.builder(
@@ -93,12 +121,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _logout() {
+    AuthService.logout();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Clockin Admin')),
+      appBar: AppBar(
+        title: const Text('Clockin Admin'),
+        actions: [
+          // Show role badge
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isSuperAdmin ? Colors.amber : Colors.blue,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isSuperAdmin ? 'Super Admin' : 'Admin',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
       body: getBody(),
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: (_selectedIndex == 0 && isSuperAdmin)
           ? FloatingActionButton.extended(
         onPressed: () async {
           final newEventName = await Navigator.push(

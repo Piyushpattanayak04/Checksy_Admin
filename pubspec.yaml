@@ -49,6 +49,13 @@ dependencies:
   path_provider: ^2.1.2
   permission_handler: ^11.3.0
 
+  # Image picker and storage
+  image_picker: ^1.0.7
+  firebase_storage: ^11.6.0
+
+  # Analytics
+  firebase_analytics: ^10.8.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

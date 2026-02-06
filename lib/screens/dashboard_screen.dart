@@ -45,6 +45,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       members = [];
     });
 
+    // First fetch the actual subEvents from skeleton to know what fields are valid
+    final skeletonDoc = await FirebaseFirestore.instance
+        .collection('skeleton')
+        .doc(widget.eventName)
+        .get();
+    
+    final List<String> validSubEvents = skeletonDoc.exists 
+        ? List<String>.from(skeletonDoc.data()?['subEvents'] ?? [])
+        : [];
+
     final teamList = selectedTeam != null ? [selectedTeam!] : teams;
 
     // Use parallel fetching
@@ -59,11 +69,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final List<Map<String, dynamic>> teamMembers = membersSnapshot.docs.map((doc) {
         final data = doc.data();
-        data.remove('memberName'); // ensure consistency
+        
+        // Filter to only include valid subEvents (exclude collegeName, etc.)
+        final Map<String, dynamic> filteredSubEvents = {};
+        for (var subEvent in validSubEvents) {
+          filteredSubEvents[subEvent] = data[subEvent] ?? false;
+        }
+        
         return {
           'memberName': doc.id,
           'teamName': team,
-          'subEvents': data,
+          'subEvents': filteredSubEvents,
         };
       }).toList();
 
