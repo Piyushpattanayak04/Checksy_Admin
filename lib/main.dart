@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Clockin Admin',
+      title: 'Checksy Admin',
       theme: darkTheme,
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',

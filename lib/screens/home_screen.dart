@@ -133,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clockin Admin'),
+        title: const Text('Checksy Admin'),
         actions: [
           // Show role badge
           Container(
