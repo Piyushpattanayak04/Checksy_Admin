@@ -31,9 +31,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  firebase_core: ^2.27.0
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.13.0
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.6.0
 
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.3.3
@@ -51,10 +51,10 @@ dependencies:
 
   # Image picker and storage
   image_picker: ^1.0.7
-  firebase_storage: ^11.6.0
+  firebase_storage: ^12.3.5
 
   # Analytics
-  firebase_analytics: ^10.8.0
+  firebase_analytics: ^11.3.5
 
   cupertino_icons: ^1.0.8
 

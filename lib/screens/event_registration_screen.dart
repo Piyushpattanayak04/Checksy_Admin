@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/admin_auth_service.dart';
+import '../themes/app_colors.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final String eventName;
 
-  const EventDetailsScreen({Key? key, required this.eventName}) : super(key: key);
+  const EventDetailsScreen({super.key, required this.eventName});
 
   @override
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
@@ -76,15 +78,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     // Validate event name and sub-events
     if (eventName.isEmpty || subEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter event name and at least one sub-event.')),
+        const SnackBar(
+          content: Text('Please enter event name and at least one checkpoint.'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
 
     try {
-      setState(() {
-        isProcessing = true;
-      });
+      setState(() => isProcessing = true);
 
       // Upload banner if selected
       String? bannerUrl;
@@ -93,30 +96,46 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       }
 
       final eventDoc = FirebaseFirestore.instance.collection('skeleton').doc(eventName);
+      
+      // Get current admin's organization info
+      final currentAdmin = AdminAuthService.currentAdmin;
 
-      // Store event with all fields including banner and description
+      // Store event with all fields including organization reference
       await eventDoc.set({
         'eventName': eventName,
         'description': description,
         'subEvents': subEvents,
         'isTeamBasedEvent': _isTeamBasedEvent,
         'bannerUrl': bannerUrl ?? '',
+        'isAcceptingRegistrations': true,
+        'isPublished': true,
+        // Organization fields - auto-populated from admin profile
+        'organizationId': currentAdmin?.organizationId ?? '',
+        'organizationName': currentAdmin?.organizationName ?? '',
         'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': currentAdmin?.uid ?? '',
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event created successfully!')),
-      );
-
-      Navigator.pop(context, eventName);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Event created successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pop(context, eventName);
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error creating event: $e')),
+        SnackBar(
+          content: Text('Error creating event: $e'),
+          backgroundColor: AppColors.error,
+        ),
       );
     } finally {
-      setState(() {
-        isProcessing = false;
-      });
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
     }
   }
 
@@ -145,6 +164,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentAdmin = AdminAuthService.currentAdmin;
+    
     return Scaffold(
       appBar: AppBar(title: const Text('Create Event')),
       body: SingleChildScrollView(
@@ -152,12 +173,75 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Organization Info Card (auto-populated)
+            if (currentAdmin != null && currentAdmin.organizationName.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          currentAdmin.organizationName[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Creating event for',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            currentAdmin.organizationName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.verified,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            
             // Event Name
             TextField(
               controller: _eventNameController,
               decoration: const InputDecoration(
                 labelText: 'Event Name',
-                border: OutlineInputBorder(),
+                hintText: 'Enter event name',
+                prefixIcon: Icon(Icons.event),
               ),
             ),
             const SizedBox(height: 16),
@@ -169,13 +253,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               decoration: const InputDecoration(
                 labelText: 'Event Description',
                 hintText: 'Enter a brief description of the event...',
-                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Banner Image Picker
-            const Text('Event Banner', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            const Text(
+              'Event Banner',
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: _pickBannerImage,

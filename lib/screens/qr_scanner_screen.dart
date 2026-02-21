@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'attendance_screen.dart';
 import '../widgets/scanner_overlay.dart';
+import '../services/admin_auth_service.dart';
+import '../themes/app_colors.dart';
 
 class QRScannerScreen extends StatefulWidget {
   final String eventName;
@@ -38,7 +40,20 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
       if (!skeletonDoc.exists) throw 'Event not registered in skeleton.';
 
-      final subEvents = List<String>.from(skeletonDoc.data()?['subEvents'] ?? []);
+      // Check organization access
+      final eventData = skeletonDoc.data()!;
+      final eventOrgId = eventData['organizationId'] ?? '';
+      final currentAdmin = AdminAuthService.currentAdmin;
+      
+      // Only allow scanning for events in the admin's organization (or super admin)
+      if (!AdminAuthService.isSuperAdmin && 
+          currentAdmin != null && 
+          eventOrgId.isNotEmpty &&
+          currentAdmin.organizationId != eventOrgId) {
+        throw 'This event belongs to a different organization.';
+      }
+
+      final subEvents = List<String>.from(eventData['subEvents'] ?? []);
       if (subEvents.isEmpty) throw 'No sub-events found for this event.';
 
       final memberRef = FirebaseFirestore.instance

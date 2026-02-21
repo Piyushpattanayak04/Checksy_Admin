@@ -1,0 +1,231 @@
+================================================================================
+                    CLOCKIN PLATFORM - MANUAL SETUP GUIDE
+              Tasks That Require Manual Action (Firebase, Config, etc.)
+================================================================================
+
+Last Updated: February 20, 2026
+Apps: Clockin_V2 (Client) & clockin_admin (Admin)
+
+================================================================================
+                           FIREBASE SETUP (REQUIRED)
+================================================================================
+
+1. FIREBASE AUTHENTICATION
+   -------------------------
+   Go to: Firebase Console > Authentication > Sign-in method
+
+   [ ] Enable Email/Password authentication
+   [ ] (Optional) Enable Google Sign-In for client app
+   
+   For Admin App:
+   [ ] Create first super_admin account manually in Firebase Auth
+       Email: your-admin@example.com
+       Password: (secure password)
+
+
+2. FIRESTORE DATABASE COLLECTIONS
+   -------------------------------
+   The following collections need to be created/verified:
+
+   [ ] organizations
+       Purpose: Store organization/college data
+       Required fields:
+       - id: String (auto-generated)
+       - name: String
+       - description: String
+       - logoUrl: String (optional)
+       - bannerUrl: String (optional)
+       - city: String
+       - category: String (college/company/community)
+       - isVerified: Boolean
+       - createdAt: Timestamp
+
+   [ ] adminUsers
+       Purpose: Store admin user profiles and roles
+       Required fields:
+       - uid: String (Firebase Auth UID)
+       - email: String
+       - displayName: String
+       - organizationId: String
+       - organizationName: String
+       - role: String (super_admin/org_admin/scanner)
+       - isActive: Boolean
+       - createdAt: Timestamp
+
+   [ ] skeleton (already exists - needs update)
+       Add these fields to existing events:
+       - organizationId: String
+       - organizationName: String
+       - isAcceptingRegistrations: Boolean (default: true)
+
+
+3. FIRESTORE SECURITY RULES
+   -------------------------
+   Update your Firestore rules in Firebase Console > Firestore > Rules:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       
+       // Organizations - public read, authenticated write
+       match /organizations/{orgId} {
+         allow read: if true;
+         allow write: if request.auth != null;
+       }
+       
+       // Admin Users - only authenticated admins
+       match /adminUsers/{adminId} {
+         allow read: if request.auth != null && request.auth.uid == adminId;
+         allow read: if request.auth != null && 
+           get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'super_admin';
+         allow write: if request.auth != null && 
+           get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'super_admin';
+       }
+       
+       // Events (skeleton) - public read, org admin write
+       match /skeleton/{eventId} {
+         allow read: if true;
+         allow write: if request.auth != null;
+         
+         match /teams/{teamId} {
+           allow read, write: if true;
+         }
+       }
+     }
+   }
+   ```
+
+
+4. CREATE FIRST SUPER ADMIN (CRITICAL)
+   ------------------------------------
+   After setting up Firebase Auth, manually create the super_admin document:
+
+   [ ] Go to Firebase Console > Firestore > adminUsers collection
+   [ ] Add a new document with ID = Firebase Auth UID of admin user
+   [ ] Set these fields:
+       {
+         "uid": "<Firebase Auth UID>",
+         "email": "admin@yourdomain.com",
+         "displayName": "Super Admin",
+         "organizationId": "",
+         "organizationName": "Platform Admin",
+         "role": "super_admin",
+         "isActive": true,
+         "createdAt": <server timestamp>
+       }
+
+
+5. FIREBASE STORAGE (Optional)
+   ----------------------------
+   For organization logos and event banners:
+
+   [ ] Enable Firebase Storage in console
+   [ ] Set storage rules:
+       ```
+       rules_version = '2';
+       service firebase.storage {
+         match /b/{bucket}/o {
+           match /organizations/{orgId}/{allPaths=**} {
+             allow read: if true;
+             allow write: if request.auth != null;
+           }
+           match /events/{eventId}/{allPaths=**} {
+             allow read: if true;
+             allow write: if request.auth != null;
+           }
+         }
+       }
+       ```
+
+
+================================================================================
+                         APP CONFIGURATION
+================================================================================
+
+6. ANDROID CONFIGURATION
+   ----------------------
+   For both apps, ensure:
+
+   [ ] google-services.json is in android/app/ folder
+   [ ] ApplicationId matches Firebase project package name
+   
+   clockin_admin: 
+   - Package: com.yourcompany.clockin_admin
+   
+   Clockin_V2:
+   - Package: com.yourcompany.clockin_v2
+
+
+7. IOS CONFIGURATION (if deploying to iOS)
+   ----------------------------------------
+   [ ] GoogleService-Info.plist is in ios/Runner/ folder
+   [ ] Bundle ID matches Firebase project
+
+
+8. UPDATE EXISTING EVENTS (Data Migration)
+   ----------------------------------------
+   For existing events in 'skeleton' collection, add:
+
+   [ ] Run this script in Firebase Console > Firestore:
+       
+       For each existing event document, add:
+       - organizationId: "" (empty string for legacy events)
+       - organizationName: "Legacy Events"
+       - isAcceptingRegistrations: true
+
+
+================================================================================
+                    TESTING CHECKLIST
+================================================================================
+
+[ ] Admin App - Login with super_admin account
+[ ] Admin App - Create a new organization via signup flow
+[ ] Admin App - Create org_admin for the organization
+[ ] Admin App - Create an event under the organization
+[ ] Admin App - Toggle registration status
+[ ] Admin App - View dashboard with participants
+[ ] Admin App - QR scanning works
+
+[ ] Client App - Browse organizations
+[ ] Client App - View events by organization
+[ ] Client App - Register for an event
+[ ] Client App - View registered tickets
+[ ] Client App - QR code displays correctly
+
+
+================================================================================
+                    PRODUCTION DEPLOYMENT
+================================================================================
+
+Before going to production:
+
+[ ] Enable App Check in Firebase Console
+[ ] Set up proper Firestore indexes for queries
+[ ] Configure Firebase Analytics
+[ ] Set up Crashlytics for error reporting
+[ ] Review and tighten security rules
+[ ] Test with multiple organizations
+[ ] Load test with concurrent users
+
+
+================================================================================
+                    SUPPORT & TROUBLESHOOTING
+================================================================================
+
+Common Issues:
+
+1. "Access Denied" in Admin App
+   - Check adminUsers collection has correct UID
+   - Verify role is set correctly (super_admin/org_admin)
+   - Ensure organizationId matches event's organizationId
+
+2. Events not showing for org admin
+   - Check event has organizationId field
+   - Verify admin's organizationId matches event's organizationId
+
+3. OAuth/Login issues
+   - Regenerate google-services.json from Firebase Console
+   - Check SHA-1 fingerprint is registered in Firebase
+
+================================================================================
