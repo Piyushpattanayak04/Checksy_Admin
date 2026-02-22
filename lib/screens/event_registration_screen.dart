@@ -24,6 +24,22 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   bool _isTeamBasedEvent = false;
   File? _selectedBannerImage;
   final ImagePicker _picker = ImagePicker();
+  
+  // Category selection
+  String _selectedCategory = 'other';
+  final List<Map<String, dynamic>> _categories = [
+    {'value': 'tech', 'label': 'Tech', 'icon': Icons.computer},
+    {'value': 'hackathon', 'label': 'Hackathon', 'icon': Icons.code},
+    {'value': 'workshop', 'label': 'Workshop', 'icon': Icons.build},
+    {'value': 'seminar', 'label': 'Seminar', 'icon': Icons.school},
+    {'value': 'cultural', 'label': 'Cultural', 'icon': Icons.palette},
+    {'value': 'sports', 'label': 'Sports', 'icon': Icons.sports},
+    {'value': 'competition', 'label': 'Competition', 'icon': Icons.emoji_events},
+    {'value': 'conference', 'label': 'Conference', 'icon': Icons.groups},
+    {'value': 'meetup', 'label': 'Meetup', 'icon': Icons.handshake},
+    {'value': 'webinar', 'label': 'Webinar', 'icon': Icons.videocam},
+    {'value': 'other', 'label': 'Other', 'icon': Icons.category},
+  ];
 
   // Pick banner image from gallery
   Future<void> _pickBannerImage() async {
@@ -109,6 +125,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         'bannerUrl': bannerUrl ?? '',
         'isAcceptingRegistrations': true,
         'isPublished': true,
+        // Category for filtering
+        'category': _selectedCategory,
         // Organization fields - auto-populated from admin profile
         'organizationId': currentAdmin?.organizationId ?? '',
         'organizationName': currentAdmin?.organizationName ?? '',
@@ -255,6 +273,33 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 hintText: 'Enter a brief description of the event...',
                 alignLabelWithHint: true,
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Event Category Dropdown
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Event Category',
+                prefixIcon: Icon(Icons.category),
+              ),
+              items: _categories.map((category) {
+                return DropdownMenuItem<String>(
+                  value: category['value'] as String,
+                  child: Row(
+                    children: [
+                      Icon(category['icon'] as IconData, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Text(category['label'] as String),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedCategory = value);
+                }
+              },
             ),
             const SizedBox(height: 20),
 
