@@ -15,25 +15,25 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> 
+class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Access control
   bool _checkingAccess = true;
   bool _hasAccess = false;
-  
+
   // Event data
   String _eventDisplayName = '';
   bool _isAcceptingRegistrations = true;
   List<String> _subEvents = [];
-  
+
   // Filter/Search
   String? _selectedTeam;
   List<String> _teams = [];
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  
+
   // View mode
   bool _isGridView = false;
 
@@ -53,10 +53,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _checkAccessAndLoad() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('skeleton')
-          .doc(widget.eventName)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('skeleton')
+              .doc(widget.eventName)
+              .get();
 
       if (!doc.exists) {
         setState(() {
@@ -70,16 +71,18 @@ class _DashboardScreenState extends State<DashboardScreen>
       final eventOrgId = data['organizationId'] ?? '';
       final currentAdmin = AdminAuthService.currentAdmin;
 
-      final hasAccess = AdminAuthService.isSuperAdmin ||
+      final hasAccess =
+          AdminAuthService.isSuperAdmin ||
           (currentAdmin != null && currentAdmin.organizationId == eventOrgId);
 
       if (hasAccess) {
         // Load teams
-        final teamsSnapshot = await FirebaseFirestore.instance
-            .collection('events')
-            .doc(widget.eventName)
-            .collection('teams')
-            .get();
+        final teamsSnapshot =
+            await FirebaseFirestore.instance
+                .collection('events')
+                .doc(widget.eventName)
+                .collection('teams')
+                .get();
 
         setState(() {
           _checkingAccess = false;
@@ -105,17 +108,19 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _toggleRegistrations(bool value) async {
     setState(() => _isAcceptingRegistrations = value);
-    
+
     await FirebaseFirestore.instance
         .collection('skeleton')
         .doc(widget.eventName)
         .update({'isAcceptingRegistrations': value});
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            value ? 'Registrations are now open' : 'Registrations are now closed',
+            value
+                ? 'Registrations are now open'
+                : 'Registrations are now closed',
           ),
           backgroundColor: value ? AppColors.success : AppColors.warning,
         ),
@@ -130,60 +135,63 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     final teamList = _selectedTeam != null ? [_selectedTeam!] : _teams;
-    
+
     // We'll combine streams from all teams
     return FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventName)
         .snapshots()
         .asyncMap((eventDoc) async {
-      final List<Map<String, dynamic>> allMembers = [];
-      
-      // Fetch all teams in parallel using Future.wait
-      final memberFutures = teamList.map((team) {
-        return FirebaseFirestore.instance
-            .collection('events')
-            .doc(widget.eventName)
-            .collection('teams')
-            .doc(team)
-            .collection('members')
-            .get()
-            .then((snapshot) => {'team': team, 'docs': snapshot.docs});
-      }).toList();
-      
-      final results = await Future.wait(memberFutures);
-      
-      for (final result in results) {
-        final team = result['team'] as String;
-        final docs = result['docs'] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
-        
-        for (final doc in docs) {
-          final data = doc.data();
-          final Map<String, dynamic> filteredSubEvents = {};
-          for (var subEvent in _subEvents) {
-            filteredSubEvents[subEvent] = data[subEvent] ?? false;
+          final List<Map<String, dynamic>> allMembers = [];
+
+          // Fetch all teams in parallel using Future.wait
+          final memberFutures =
+              teamList.map((team) {
+                return FirebaseFirestore.instance
+                    .collection('events')
+                    .doc(widget.eventName)
+                    .collection('teams')
+                    .doc(team)
+                    .collection('members')
+                    .get()
+                    .then((snapshot) => {'team': team, 'docs': snapshot.docs});
+              }).toList();
+
+          final results = await Future.wait(memberFutures);
+
+          for (final result in results) {
+            final team = result['team'] as String;
+            final docs =
+                result['docs']
+                    as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+
+            for (final doc in docs) {
+              final data = doc.data();
+              final Map<String, dynamic> filteredSubEvents = {};
+              for (var subEvent in _subEvents) {
+                filteredSubEvents[subEvent] = data[subEvent] ?? false;
+              }
+
+              allMembers.add({
+                'memberName': doc.id,
+                'teamName': team,
+                'subEvents': filteredSubEvents,
+              });
+            }
           }
-          
-          allMembers.add({
-            'memberName': doc.id,
-            'teamName': team,
-            'subEvents': filteredSubEvents,
-          });
-        }
-      }
-      
-      // Apply search filter
-      if (_searchQuery.isNotEmpty) {
-        return allMembers.where((m) {
-          final name = m['memberName'].toString().toLowerCase();
-          final team = m['teamName'].toString().toLowerCase();
-          final query = _searchQuery.toLowerCase();
-          return name.contains(query) || team.contains(query);
-        }).toList();
-      }
-      
-      return allMembers;
-    });
+
+          // Apply search filter
+          if (_searchQuery.isNotEmpty) {
+            return allMembers.where((m) {
+              final name = m['memberName'].toString().toLowerCase();
+              final team = m['teamName'].toString().toLowerCase();
+              final query = _searchQuery.toLowerCase();
+              return name.contains(query) || team.contains(query);
+            }).toList();
+          }
+
+          return allMembers;
+        });
   }
 
   // Calculate stats from members
@@ -193,23 +201,23 @@ class _DashboardScreenState extends State<DashboardScreen>
     int partiallyCheckedIn = 0;
     int notCheckedIn = 0;
     Map<String, int> checkpointCounts = {};
-    
+
     // Initialize checkpoint counts
     for (var checkpoint in _subEvents) {
       checkpointCounts[checkpoint] = 0;
     }
-    
+
     for (var member in members) {
       final subEvents = member['subEvents'] as Map<String, dynamic>;
       int completedCount = 0;
-      
+
       subEvents.forEach((key, value) {
         if (value == true) {
           completedCount++;
           checkpointCounts[key] = (checkpointCounts[key] ?? 0) + 1;
         }
       });
-      
+
       if (completedCount == _subEvents.length && _subEvents.isNotEmpty) {
         fullyCheckedIn++;
       } else if (completedCount > 0) {
@@ -218,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         notCheckedIn++;
       }
     }
-    
+
     return {
       'total': totalMembers,
       'fullyCheckedIn': fullyCheckedIn,
@@ -269,7 +277,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, snapshot) {
           final members = snapshot.data ?? [];
           final stats = _calculateStats(members);
-          
+
           return TabBarView(
             controller: _tabController,
             children: [
@@ -330,7 +338,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============== OVERVIEW TAB ==============
-  Widget _buildOverviewTab(List<Map<String, dynamic>> members, Map<String, dynamic> stats) {
+  Widget _buildOverviewTab(
+    List<Map<String, dynamic>> members,
+    Map<String, dynamic> stats,
+  ) {
     return RefreshIndicator(
       onRefresh: _checkAccessAndLoad,
       child: SingleChildScrollView(
@@ -342,11 +353,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             // Registration Status Toggle
             _buildRegistrationToggle(),
             const SizedBox(height: 20),
-            
+
             // Stats Cards
             _buildStatsGrid(stats),
             const SizedBox(height: 24),
-            
+
             // Checkpoint Progress Overview
             const Text(
               'Checkpoint Progress',
@@ -359,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             const SizedBox(height: 12),
             _buildCheckpointOverview(stats),
             const SizedBox(height: 24),
-            
+
             // Recent Activity (placeholder for future)
             _buildRecentActivity(members),
           ],
@@ -374,7 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            _isAcceptingRegistrations 
+            _isAcceptingRegistrations
                 ? AppColors.success.withOpacity(0.1)
                 : AppColors.error.withOpacity(0.1),
             AppColors.card,
@@ -384,9 +395,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isAcceptingRegistrations
-              ? AppColors.success.withOpacity(0.3)
-              : AppColors.error.withOpacity(0.3),
+          color:
+              _isAcceptingRegistrations
+                  ? AppColors.success.withOpacity(0.3)
+                  : AppColors.error.withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -395,14 +407,18 @@ class _DashboardScreenState extends State<DashboardScreen>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: _isAcceptingRegistrations
-                  ? AppColors.success.withOpacity(0.15)
-                  : AppColors.error.withOpacity(0.15),
+              color:
+                  _isAcceptingRegistrations
+                      ? AppColors.success.withOpacity(0.15)
+                      : AppColors.error.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               _isAcceptingRegistrations ? Icons.how_to_reg : Icons.person_off,
-              color: _isAcceptingRegistrations ? AppColors.success : AppColors.error,
+              color:
+                  _isAcceptingRegistrations
+                      ? AppColors.success
+                      : AppColors.error,
             ),
           ),
           const SizedBox(width: 16),
@@ -423,7 +439,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   _isAcceptingRegistrations
                       ? 'Participants can register'
                       : 'Registrations are closed',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -443,9 +462,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context, constraints) {
         // Calculate aspect ratio based on available width
         final cardWidth = (constraints.maxWidth - 12) / 2;
-        final cardHeight = 150.0; // Fixed height to prevent overflow
+        final cardHeight = 130.0; // Fixed height for compact cards
         final aspectRatio = cardWidth / cardHeight;
-        
+
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -466,9 +485,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               value: '${stats['fullyCheckedIn']}',
               icon: Icons.check_circle,
               color: AppColors.success,
-              subtitle: _subEvents.isNotEmpty 
-                  ? 'All ${_subEvents.length} checkpoints'
-                  : 'No checkpoints',
+              subtitle:
+                  _subEvents.isNotEmpty
+                      ? 'All ${_subEvents.length} checkpoints'
+                      : 'No checkpoints',
             ),
             StatsCard(
               title: 'Partially Checked In',
@@ -549,17 +569,22 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           )
         else
-          ...recentMembers.map((member) => ParticipantCard(
-            memberName: member['memberName'],
-            teamName: member['teamName'],
-            subEvents: member['subEvents'],
-          )),
+          ...recentMembers.map(
+            (member) => ParticipantCard(
+              memberName: member['memberName'],
+              teamName: member['teamName'],
+              subEvents: member['subEvents'],
+            ),
+          ),
       ],
     );
   }
 
   // ============== PARTICIPANTS TAB ==============
-  Widget _buildParticipantsTab(List<Map<String, dynamic>> members, Map<String, dynamic> stats) {
+  Widget _buildParticipantsTab(
+    List<Map<String, dynamic>> members,
+    Map<String, dynamic> stats,
+  ) {
     return Column(
       children: [
         // Search and Filter Bar
@@ -573,15 +598,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 decoration: InputDecoration(
                   hintText: 'Search by name or team...',
                   prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
+                  suffixIcon:
+                      _searchQuery.isNotEmpty
+                          ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                          : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: AppColors.border),
@@ -592,7 +618,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onChanged: (value) => setState(() => _searchQuery = value),
               ),
               const SizedBox(height: 12),
-              
+
               // Team Filter Chips
               SizedBox(
                 height: 40,
@@ -603,21 +629,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                       setState(() => _selectedTeam = null);
                     }),
                     const SizedBox(width: 8),
-                    ..._teams.map((team) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _buildFilterChip(
-                        team, 
-                        _selectedTeam == team, 
-                        () => setState(() => _selectedTeam = team),
+                    ..._teams.map(
+                      (team) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildFilterChip(
+                          team,
+                          _selectedTeam == team,
+                          () => setState(() => _selectedTeam = team),
+                        ),
                       ),
-                    )),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        
+
         // Results count
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -643,12 +671,13 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(height: 8),
-        
+
         // Participants List/Grid
         Expanded(
-          child: members.isEmpty
-              ? _buildEmptyState()
-              : _isGridView
+          child:
+              members.isEmpty
+                  ? _buildEmptyState()
+                  : _isGridView
                   ? _buildParticipantsGrid(members)
                   : _buildParticipantsList(members),
         ),
@@ -692,7 +721,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Icon(Icons.people_outline, size: 64, color: AppColors.textMuted),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty 
+            _searchQuery.isNotEmpty
                 ? 'No participants match your search'
                 : 'No participants yet',
             style: const TextStyle(
@@ -749,33 +778,37 @@ class _DashboardScreenState extends State<DashboardScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ParticipantCard(
+                  memberName: member['memberName'],
+                  teamName: member['teamName'],
+                  subEvents: member['subEvents'],
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            ParticipantCard(
-              memberName: member['memberName'],
-              teamName: member['teamName'],
-              subEvents: member['subEvents'],
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   // ============== PROGRESS TAB ==============
-  Widget _buildProgressTab(List<Map<String, dynamic>> members, Map<String, dynamic> stats) {
+  Widget _buildProgressTab(
+    List<Map<String, dynamic>> members,
+    Map<String, dynamic> stats,
+  ) {
     final checkpointCounts = stats['checkpointCounts'] as Map<String, int>;
     final total = stats['total'] as int;
 
@@ -806,10 +839,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       children: [
                         const Text(
                           'Overall Progress',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -838,13 +868,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                       alignment: Alignment.center,
                       children: [
                         CircularProgressIndicator(
-                          value: total > 0 ? stats['fullyCheckedIn'] / total : 0,
+                          value:
+                              total > 0 ? stats['fullyCheckedIn'] / total : 0,
                           strokeWidth: 8,
                           backgroundColor: Colors.white24,
-                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                          valueColor: const AlwaysStoppedAnimation(
+                            Colors.white,
+                          ),
                         ),
                         Text(
-                          total > 0 
+                          total > 0
                               ? '${((stats['fullyCheckedIn'] / total) * 100).round()}%'
                               : '0%',
                           style: const TextStyle(
@@ -883,7 +916,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.playlist_add, size: 48, color: AppColors.textMuted),
+                      Icon(
+                        Icons.playlist_add,
+                        size: 48,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         'No checkpoints configured',
@@ -894,14 +931,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               )
             else
-              ..._subEvents.map((checkpoint) => CheckpointProgress(
-                checkpointName: checkpoint,
-                completed: checkpointCounts[checkpoint] ?? 0,
-                total: total,
-              )),
-            
+              ..._subEvents.map(
+                (checkpoint) => CheckpointProgress(
+                  checkpointName: checkpoint,
+                  completed: checkpointCounts[checkpoint] ?? 0,
+                  total: total,
+                ),
+              ),
+
             const SizedBox(height: 24),
-            
+
             // Team Breakdown
             const Text(
               'Team Breakdown',
@@ -945,95 +984,100 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     return Column(
-      children: teamMembers.entries.map((entry) {
-        final teamName = entry.key;
-        final teamMembersList = entry.value;
-        
-        // Calculate team completion
-        int fullyCompleted = 0;
-        for (var member in teamMembersList) {
-          final subEvents = member['subEvents'] as Map<String, dynamic>;
-          final completed = subEvents.values.where((v) => v == true).length;
-          if (completed == _subEvents.length && _subEvents.isNotEmpty) {
-            fullyCompleted++;
-          }
-        }
-        
-        final progress = teamMembersList.isNotEmpty 
-            ? fullyCompleted / teamMembersList.length 
-            : 0.0;
+      children:
+          teamMembers.entries.map((entry) {
+            final teamName = entry.key;
+            final teamMembersList = entry.value;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text(
-                    teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+            // Calculate team completion
+            int fullyCompleted = 0;
+            for (var member in teamMembersList) {
+              final subEvents = member['subEvents'] as Map<String, dynamic>;
+              final completed = subEvents.values.where((v) => v == true).length;
+              if (completed == _subEvents.length && _subEvents.isNotEmpty) {
+                fullyCompleted++;
+              }
+            }
+
+            final progress =
+                teamMembersList.isNotEmpty
+                    ? fullyCompleted / teamMembersList.length
+                    : 0.0;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      teamName,
-                      style: const TextStyle(
-                        fontSize: 14,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          teamName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${teamMembersList.length} member${teamMembersList.length != 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getProgressColor(progress).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$fullyCompleted / ${teamMembersList.length}',
+                      style: TextStyle(
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: _getProgressColor(progress),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${teamMembersList.length} member${teamMembersList.length != 1 ? 's' : ''}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getProgressColor(progress).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$fullyCompleted / ${teamMembersList.length}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _getProgressColor(progress),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
