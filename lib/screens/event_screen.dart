@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/admin_auth_service.dart';
 import '../themes/app_colors.dart';
 import 'dashboard_screen.dart';
+import 'export_data_screen.dart';
 import 'manage_event_screen.dart';
 
 class EventScreen extends StatefulWidget {
@@ -30,10 +31,11 @@ class _EventScreenState extends State<EventScreen> {
 
   Future<void> _checkAccessAndLoadEvent() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('skeleton')
-          .doc(widget.eventName)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('skeleton')
+              .doc(widget.eventName)
+              .get();
 
       if (!doc.exists) {
         setState(() {
@@ -49,7 +51,8 @@ class _EventScreenState extends State<EventScreen> {
 
       // Super admins can access all events
       // Org admins can only access their organization's events
-      final hasAccess = AdminAuthService.isSuperAdmin ||
+      final hasAccess =
+          AdminAuthService.isSuperAdmin ||
           (currentAdmin != null && currentAdmin.organizationId == eventOrgId);
 
       setState(() {
@@ -139,9 +142,10 @@ class _EventScreenState extends State<EventScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _isAcceptingRegistrations
-                  ? AppColors.success.withOpacity(0.15)
-                  : AppColors.error.withOpacity(0.15),
+              color:
+                  _isAcceptingRegistrations
+                      ? AppColors.success.withOpacity(0.15)
+                      : AppColors.error.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -150,7 +154,10 @@ class _EventScreenState extends State<EventScreen> {
                 Icon(
                   _isAcceptingRegistrations ? Icons.check_circle : Icons.cancel,
                   size: 16,
-                  color: _isAcceptingRegistrations ? AppColors.success : AppColors.error,
+                  color:
+                      _isAcceptingRegistrations
+                          ? AppColors.success
+                          : AppColors.error,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -158,7 +165,10 @@ class _EventScreenState extends State<EventScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _isAcceptingRegistrations ? AppColors.success : AppColors.error,
+                    color:
+                        _isAcceptingRegistrations
+                            ? AppColors.success
+                            : AppColors.error,
                   ),
                 ),
               ],
@@ -176,10 +186,7 @@ class _EventScreenState extends State<EventScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.2),
-                    AppColors.card,
-                  ],
+                  colors: [AppColors.primary.withOpacity(0.2), AppColors.card],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -245,7 +252,8 @@ class _EventScreenState extends State<EventScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => DashboardScreen(eventName: widget.eventName),
+                    builder:
+                        (_) => DashboardScreen(eventName: widget.eventName),
                   ),
                 );
               },
@@ -262,11 +270,30 @@ class _EventScreenState extends State<EventScreen> {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ManageEventScreen(eventName: widget.eventName),
+                    builder:
+                        (_) => ManageEventScreen(eventName: widget.eventName),
                   ),
                 );
                 // Refresh data after returning from manage screen
                 _checkAccessAndLoadEvent();
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Export Data Button
+            _buildActionCard(
+              icon: Icons.file_download,
+              title: 'Export Data',
+              description: 'Generate & download participant reports',
+              color: AppColors.success,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => ExportDataScreen(eventName: widget.eventName),
+                  ),
+                );
               },
             ),
           ],
@@ -325,10 +352,7 @@ class _EventScreenState extends State<EventScreen> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: AppColors.textMuted,
-              ),
+              Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
           ),
         ),
